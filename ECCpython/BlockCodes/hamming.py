@@ -1,7 +1,7 @@
 import numpy as np
 from BlockCodes.blockcode import BlockCode
-from HelperFuncs import de2bi
-from HelperFuncs import bi2de
+from Tools.helperFuncs import de2bi
+from Tools.helperFuncs import bi2de
 
 
 class Hamming(BlockCode):

@@ -1,7 +1,7 @@
 import numpy as np
 from Mapping.mapping import Mapping
-from HelperFuncs import de2bi
-from HelperFuncs import bi2de
+from Tools.helperFuncs import de2bi
+from Tools.helperFuncs import bi2de
 
 
 class Modulation(Mapping):
