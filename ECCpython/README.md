@@ -25,6 +25,7 @@ Currently, the following classes are supported:
    1. Single Parity Check
    2. Repetition Code
    3. Hamming Code
+   4. Simplex Code
 2. Convolutional Codes
 3. LDPC
 4. Modulation
