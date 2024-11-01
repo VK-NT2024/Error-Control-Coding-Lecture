@@ -1,4 +1,4 @@
-Ihrerimport numpy as np
+import numpy as np
 from BlockCodes.blockcode import BlockCode
 
 
