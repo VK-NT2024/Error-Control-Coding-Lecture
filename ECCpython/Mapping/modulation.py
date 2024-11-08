@@ -1,7 +1,7 @@
 import numpy as np
 from Mapping.mapping import Mapping
-from Tools.helperFuncs import de2bi
-from Tools.helperFuncs import bi2de
+from HelperFuncs import de2bi
+from HelperFuncs import bi2de
 
 
 class Modulation(Mapping):
@@ -31,9 +31,9 @@ class Modulation(Mapping):
         super().__init__(m, coding_type)
 
         # idea is that the coding array is a reordering of the modulation array (but with args)
-        self._MOD_ = self.modDICT[self.modulation_type]()
-        self.E = np.sqrt(np.sum(np.abs(self._MOD_) ** 2) / self.M)  # energy normalisation factor
-        self._MOD = self._MOD_[self._sort] / self.E  # normalised
+        constellation = self.modDICT[self.modulation_type]()
+        self.E = np.mean(np.abs(constellation) ** 2)  # energy normalisation factor
+        self.constellation = constellation[self._sort] / np.sqrt(self.E)  # normalised
         self._X = self.modulate(self._Cbin)
 
         self.Lmax = 1000
@@ -57,11 +57,11 @@ class Modulation(Mapping):
     def spectral_efficiency(self):
         return self.m
 
-    @property
-    def constellation(self):
+    #@property
+    def plot_constellation(self, size):
         import matplotlib.pyplot as plt
-        fig, ax = plt.subplots()
-        constellation = self._X * self.E
+        fig, ax = plt.subplots(figsize=size)
+        constellation = self._X
         plt.scatter(constellation.real, constellation.imag, marker="o", label="Constellation Points")
         ax.grid(True, linewidth=0.25, linestyle="--", color="gray")
 
@@ -71,6 +71,8 @@ class Modulation(Mapping):
 
         ax.set_xlabel("Re")
         ax.set_ylabel("Im")
+        ax.set_xlim(-1.1,1.1)
+        ax.set_ylim(-1.1,1.1)
         ax.set_title(f"{self.M} {self.modulation_type} Constellation Diagram")
         # ax.legend()
         plt.show()
@@ -83,7 +85,7 @@ class Modulation(Mapping):
         data = self._zero_pad(data)
         data = np.reshape(data, (-1, self.m))
         dec = bi2de(data)
-        x = np.array([self._MOD[d] for d in dec])
+        x = np.array([self.constellation[d] for d in dec])
         return x
 
     def demodulate(self, data, return_Xhat=False):
@@ -94,12 +96,12 @@ class Modulation(Mapping):
         x_hat = np.zeros_like(data)
         for i, d in enumerate(data):
             distance = np.inf
-            for j, z in enumerate(self._MOD):
+            for j, z in enumerate(self.constellation):
                 temp_d = np.abs(z - d)**2
                 if temp_d < distance:
                     distance = temp_d
                     x[i] = j
-                    x_hat[i] = self._MOD[j]
+                    x_hat[i] = self.constellation[j]
         u_hat = de2bi(x, self.m).ravel()
 
         # can be done with wrappers in future
@@ -156,10 +158,86 @@ class Modulation(Mapping):
     def QAM(self):
         """
         """
-        Re, Im = np.meshgrid(np.arange(1, self.m + 1), np.arange(self.m, 0, -1))
-        Re = Re - np.mean(Re)
-        Im = Im - np.mean(Im)
+        sqrtM = np.sqrt(self.M)
+        Re, Im = np.meshgrid(np.arange(1-sqrtM, sqrtM,2), np.arange(1-sqrtM, sqrtM,2))
         return np.array((Re + 1j * Im).ravel())
+
+    
+    def rcosfilter(self, N, alpha, Ts, Fs):
+        """
+            Generates a raised cosine (RC) filter (FIR) impulse response.
+
+            Parameters
+            ----------
+            N     : length of the filter in samples.
+            alpha : roll-off factor in interval [0, 1]
+            Ts    : symbol period in seconds
+            Fs    : sampling rate in Hz
+
+            Outputs
+            -------
+            h_rc     : 1-D ndarray with impulse response of the raised cosine filter
+            time_idx : 1-D ndarray containing time indices in seconds for the impulse response
+        """
+
+        T_delta = 1/float(Fs)
+        time_idx = ((np.arange(N)-N/2))*T_delta
+        sample_num = np.arange(N)
+        h_rc = np.zeros(N, dtype=float)
+
+        for x in sample_num:
+            t = (x-N/2)*T_delta
+            if t == 0.0:
+                h_rc[x] = 1.0
+            elif alpha != 0 and t == Ts/(2*alpha):
+                h_rc[x] = (np.pi/4)*(np.sin(np.pi*t/Ts)/(np.pi*t/Ts))
+            elif alpha != 0 and t == -Ts/(2*alpha):
+                h_rc[x] = (np.pi/4)*(np.sin(np.pi*t/Ts)/(np.pi*t/Ts))
+            else:
+                h_rc[x] = (np.sin(np.pi*t/Ts)/(np.pi*t/Ts))* \
+                        (np.cos(np.pi*alpha*t/Ts)/(1-(((2*alpha*t)/Ts)*((2*alpha*t)/Ts))))
+
+        return time_idx, h_rc
+
+    def rrcosfilter(self, N, alpha, Ts, Fs):
+        """
+            Generates a root raised cosine (RRC) filter (FIR) impulse response.
+
+            Parameters
+            ----------
+            N     : length of the filter in samples
+            alpha : roll-off factor in interval [0, 1]
+            Ts    : symbol period in seconds
+            Fs    : sampling rate in Hz
+
+            Outputs
+            ---------
+            h_rrc    : 1-D ndarray with impulse response of the root raised cosine filter
+            time_idx : 1-D ndarray containing time indices in seconds for the impulse response
+        """
+
+        T_delta = 1/float(Fs)
+        time_idx = ((np.arange(N)-N/2))*T_delta
+        sample_num = np.arange(N)
+        h_rrc = np.zeros(N, dtype=float)
+
+        for x in sample_num:
+            t = (x-N/2)*T_delta
+            if t == 0.0:
+                h_rrc[x] = 1.0 - alpha + (4*alpha/np.pi)
+            elif alpha != 0 and t == Ts/(4*alpha):
+                h_rrc[x] = (alpha/np.sqrt(2))*(((1+2/np.pi)* \
+                        (np.sin(np.pi/(4*alpha)))) + ((1-2/np.pi)*(np.cos(np.pi/(4*alpha)))))
+            elif alpha != 0 and t == -Ts/(4*alpha):
+                h_rrc[x] = (alpha/np.sqrt(2))*(((1+2/np.pi)* \
+                        (np.sin(np.pi/(4*alpha)))) + ((1-2/np.pi)*(np.cos(np.pi/(4*alpha)))))
+            else:
+                h_rrc[x] = (np.sin(np.pi*t*(1-alpha)/Ts) +  \
+                        4*alpha*(t/Ts)*np.cos(np.pi*t*(1+alpha)/Ts))/ \
+                        (np.pi*t*(1-(4*alpha*t/Ts)*(4*alpha*t/Ts))/Ts)
+
+        return time_idx, h_rrc
+
 
     def simulate(self, info_length, trials=100, SNRdB_min=-1, SNRdB_max=30, SNRdB_step=1, algorithm="approximation"):
         import matplotlib.pyplot as plt
