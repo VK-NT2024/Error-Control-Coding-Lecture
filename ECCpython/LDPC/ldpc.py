@@ -1,6 +1,5 @@
 import numpy as np
 from LDPC.alist import Alist
-from EXIT.info_theory import calc_MI
 
 
 class LDPC(Alist):

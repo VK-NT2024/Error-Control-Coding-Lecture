@@ -1,7 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from EXIT.info_theory import mi_dmc, mi_awgn, calc_MI
-
 
 class EXIT:
     def __init__(self,

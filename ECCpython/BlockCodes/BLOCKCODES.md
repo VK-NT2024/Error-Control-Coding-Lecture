@@ -1,14 +1,10 @@
 1. BlockCode:
-    Defines the class blockcode with shared methods 'encoding', 'decoding' and parameters of the code
+    Defines the shared methods and attributes of the module:
+    encoding and syndrome decoding
 2. SPC:
-    Defines the class of Single Parity Check (SPC) codes
-    includes soft decoding method
+    Deals with Single Parity Check Codes and defines the soft decoding.
 3. Hamming:
-    Defines the class of Hamming codes
-    includes simplified version of the message passing algorithm as well as other trellis based decoding methods
+    Deals with Hamming codes and defines a simplified version of the message passing algorithm as well as other
+    trellis based decoing methods
 4. Repetition:
-    Defines the class of Repetition codes
-    includes soft decoding method
-5. Simplex:
-    Defines the class of Simplex codes
-    
+    Deals with Repetition codes and defines the soft decoding
